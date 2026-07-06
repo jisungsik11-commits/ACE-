@@ -87,6 +87,9 @@ export default function App() {
   const [showPledgeModal, setShowPledgeModal] = useState(false);
   const [showRefundWarningModal, setShowRefundWarningModal] = useState(false);
   const [showSignOkModal, setShowSignOkModal] = useState(false);
+  const [showAccountPaymentModal, setShowAccountPaymentModal] = useState(false);
+  const [pendingPaymentGrade, setPendingPaymentGrade] = useState<'BRONZE' | 'SILVER' | 'GOLD' | 'VIP' | null>(null);
+  const [copiedText, setCopiedText] = useState(false);
   const [selectedBride, setSelectedBride] = useState<BrideProfile | null>(null);
   
   // Custom video playback & document viewer inside Step 5 Unlocked Area
@@ -314,6 +317,15 @@ export default function App() {
       return;
     }
 
+    setPendingPaymentGrade(grade);
+    setCopiedText(false);
+    setShowAccountPaymentModal(true);
+  };
+
+  const handleConfirmAccountPayment = () => {
+    if (!pendingPaymentGrade) return;
+
+    const grade = pendingPaymentGrade;
     const payTimeStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     // Update state to selected grade and start 1-hour timer
@@ -339,9 +351,12 @@ export default function App() {
       )
     );
 
+    setShowAccountPaymentModal(false);
+    setPendingPaymentGrade(null);
+
     // Switch to gallery to show activated brides
     setActiveTab('gallery');
-    alert(`🎉 [${grade}] 등급 멤버십 결제가 완료되었습니다!\n구글 스프레드시트에 실시간으로 동기화되어 해당 등급 신부 갤러리가 즉시 활성화됩니다.`);
+    alert(`🎉 [${grade}] 등급의 무통장 송금 확인 및 승인이 완료되었습니다!\n구글 스프레드시트에 실시간으로 동기화되어 해당 등급 신부 갤러리가 즉시 활성화됩니다.`);
   };
 
   // --- 6. 1-Hour Refund & Blacklist ban (Step 3 Case A) ---
@@ -768,7 +783,7 @@ export default function App() {
                 <span className="font-serif font-black text-lg tracking-widest text-amber-500">ACE</span>
                 <span className="text-xs bg-[#1E1E1E] text-amber-400/80 border border-amber-500/20 px-2 py-0.5 rounded font-mono font-bold">CONFIDENTIAL</span>
               </div>
-              <p className="text-[10px] text-gray-500 font-sans">에이스 매치 초고가 서약 기반 보안 매칭 플랫폼</p>
+              <p className="text-[10px] text-gray-500 font-sans">에이스 매치 최저가 서약 기반 보안 매칭 플랫폼</p>
             </div>
           </div>
 
@@ -1794,19 +1809,57 @@ export default function App() {
                           </p>
                         </div>
 
-                        {/* Demo Time Travel Controls */}
-                        {userState.timerActive && (
-                          <div className="flex items-center gap-2 bg-[#161616] border border-amber-500/20 px-3 py-1.5 rounded-lg shrink-0 self-start md:self-auto">
-                            <span className="text-[10px] text-gray-400 font-sans">⏱️ 데모용 시간 이동 기믹:</span>
-                            <button
-                              onClick={handleFastForwardTimer}
-                              className="bg-amber-500/25 hover:bg-amber-500/40 text-amber-400 font-semibold text-[10px] px-2 py-0.5 rounded border border-amber-500/30 transition-all"
-                              id="demo-timer-fastforward"
-                            >
-                              1시간 경과시키기
-                            </button>
-                          </div>
-                        )}
+                        {/* Visible 1-Hour Countdown Timer Interface */}
+                        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto shrink-0">
+                          {userState.timerActive ? (
+                            <div className="flex items-center gap-2.5 bg-red-950/20 border border-red-500/40 px-4 py-2 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.1)] ring-1 ring-red-500/20">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-red-400 font-sans font-bold tracking-wider uppercase">안심 전액 환불/취소 가능 시간</span>
+                                <span className="text-sm font-mono font-black text-red-500 tracking-wider">
+                                  {formatTime(userState.timerSeconds)} 남음
+                                </span>
+                              </div>
+                            </div>
+                          ) : userState.isTimerExpired ? (
+                            <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl">
+                              <span className="w-2 h-2 rounded-full bg-neutral-600" />
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-gray-500 font-sans font-bold tracking-wider uppercase">취소 가능 시간 만료</span>
+                                <span className="text-xs font-sans font-extrabold text-gray-400">
+                                  환불 불가 (서비스 영구 고정 완료)
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2.5 bg-neutral-900/60 border border-neutral-800 px-4 py-2 rounded-xl">
+                              <Clock className="w-4 h-4 text-gray-500 animate-pulse" />
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-gray-500 font-sans font-bold tracking-wider uppercase">안심 취소 타이머</span>
+                                <span className="text-xs font-sans font-bold text-gray-400">
+                                  멤버십 승인 즉시 1시간 카운트다운 시작
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Demo Time Travel Controls */}
+                          {userState.timerActive && (
+                            <div className="flex items-center gap-2 bg-[#161616] border border-neutral-800 px-3 py-2 rounded-xl shrink-0">
+                              <span className="text-[10px] text-gray-400 font-sans">⏱️ 데모:</span>
+                              <button
+                                onClick={handleFastForwardTimer}
+                                className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 font-semibold text-[10px] px-2 py-1 rounded-lg border border-amber-500/20 transition-all cursor-pointer"
+                                id="demo-timer-fastforward"
+                              >
+                                1시간 경과
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Sub-tabs Grade Filter Bar */}
@@ -1857,7 +1910,7 @@ export default function App() {
                             },
                             SILVER: {
                               label: '실버',
-                              desc: '국내거주재혼 + 현지거주재혼',
+                              desc: '국내거주재혼 + 베트남현지거주 재혼',
                               themeColor: 'border-slate-700/40 text-slate-300',
                               activeBg: 'bg-slate-900/40 border-slate-400 text-slate-200'
                             },
@@ -2692,6 +2745,111 @@ export default function App() {
                     id="confirm-signok-sign-btn"
                   >
                     공인 서명 및 입금 예약 완료
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 4.5: Account Transfer (Bank Transfer) Modal */}
+      <AnimatePresence>
+        {showAccountPaymentModal && pendingPaymentGrade && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="account-payment-modal">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#111111] border border-neutral-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative"
+            >
+              <div className="bg-[#1e1a0f] border-b border-yellow-900/30 px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full animate-pulse"></div>
+                  <span className="font-sans text-xs font-black tracking-widest text-yellow-500">PREMIUM BANK TRANSFER</span>
+                </div>
+                <span className="bg-[#241c0a] text-yellow-400 text-[9px] px-2 py-0.5 rounded font-sans font-bold border border-yellow-800/40">실시간 자동 입금 확인</span>
+              </div>
+
+              <div className="p-6">
+                <div className="border-b border-neutral-800/50 pb-3 mb-4 text-center">
+                  <h3 className="text-base font-sans font-bold text-gray-100 mb-1">
+                    무통장 계좌 이체 결제 안내
+                  </h3>
+                  <p className="text-[11px] text-gray-400">
+                    아래 계좌로 정액 이체해주시면 AI 시스템에서 실시간으로 대조 후 즉시 권한을 승인합니다.
+                  </p>
+                </div>
+
+                {/* Grade and Amount Info Card */}
+                {(() => {
+                  const tier = MEMBERSHIP_TIERS.find(t => t.id === pendingPaymentGrade);
+                  return (
+                    <div className="bg-[#161616] border border-neutral-850 rounded-xl p-3.5 mb-4 flex justify-between items-center">
+                      <div>
+                        <span className="text-[10px] text-gray-500 block">선택하신 등급</span>
+                        <span className="font-sans font-black text-sm text-yellow-500">{tier?.name || pendingPaymentGrade} 등급 멤버십</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-gray-500 block">이체하실 금액</span>
+                        <span className="font-sans font-black text-base text-gray-100">{tier?.priceText}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Account Details Box */}
+                <div className="bg-[#0A0A0A] border border-neutral-800 rounded-xl p-4 mb-4 relative overflow-hidden">
+                  <div className="space-y-2.5">
+                    <div className="flex justify-between items-center border-b border-neutral-900 pb-2">
+                      <span className="text-xs text-gray-500">입금 은행</span>
+                      <span className="text-xs font-sans font-bold text-gray-200">NH농협은행</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-neutral-900 pb-2">
+                      <span className="text-xs text-gray-500">계좌 번호</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-sans font-bold text-yellow-500 tracking-wider">351-7247-0293-33</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText('351-7247-0293-33');
+                            setCopiedText(true);
+                            setTimeout(() => setCopiedText(false), 2000);
+                          }}
+                          className="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-[10px] text-gray-400 font-sans px-1.5 py-0.5 rounded flex items-center gap-1 transition-all"
+                        >
+                          {copiedText ? '복사됨!' : '복사'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">예금주</span>
+                      <span className="text-xs font-sans font-bold text-gray-200">PHanthithutrang</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-950/10 border border-yellow-900/20 rounded-xl p-3 mb-5 text-[10px] text-yellow-600/90 leading-relaxed">
+                  ⚠️ <strong>이체 시 주의사항:</strong> 송금인 이름은 현재 인증 받으신 신랑 회원명인 <strong>{userState.name || '본인 이름'}</strong>으로 송금해주셔야 시스템에서 즉시 자동 승인이 연동됩니다.
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowAccountPaymentModal(false);
+                      setPendingPaymentGrade(null);
+                    }}
+                    className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-gray-400 font-sans text-xs font-semibold py-3 rounded-xl border border-neutral-800 transition-colors"
+                    id="cancel-payment-btn"
+                  >
+                    이체 취소
+                  </button>
+                  <button
+                    onClick={handleConfirmAccountPayment}
+                    className="flex-1 bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-black font-sans text-xs font-bold py-3 rounded-xl shadow-lg shadow-yellow-950/20 transition-all flex items-center justify-center gap-1.5"
+                    id="confirm-payment-transfer-btn"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-black" />
+                    이체 완료 및 확인 요청
                   </button>
                 </div>
               </div>
